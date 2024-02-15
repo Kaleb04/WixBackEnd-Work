@@ -1,0 +1,477 @@
+import wixData from 'wix-data';
+
+import { myCreateContactFunction, myRegisterMemberFunction, myUpdateContactFunction, myGetContactFunction } from 'backend/contacts.jsw'
+import { authentication } from 'wix-members-frontend';
+import wixLocation from 'wix-location';
+import wixWindowFrontend from 'wix-window-frontend';
+
+async function generateMemberID(z) {
+    try {
+        // Fetch the current counter value from the database
+        const item = await wixData.get("idNumCounter", "ed59edc7-6b38-46b6-a6c8-803fb15c4011");
+
+        // Increment the counter and format the ID
+        let numb = parseInt(item.num);
+        numb += z;
+        let numString = numb.toString().padStart(10, '0');
+
+        return numString;
+    } catch (error) {
+        console.error("Error fetching member ID:", error);
+        throw error; // Rethrow the error to handle it further if needed
+    }
+}
+async function updateIdNum(z) {
+    try {
+        // Fetch the current counter value from the database
+        const item = await wixData.get("idNumCounter", "ed59edc7-6b38-46b6-a6c8-803fb15c4011");
+
+        // Increment the counter and format the ID
+        let numb = parseInt(item.num);
+        numb += z;
+        let numString = numb.toString().padStart(10, '0');
+        let toUpdate = {
+            "_id": "ed59edc7-6b38-46b6-a6c8-803fb15c4011",
+            "num": numString
+        };
+        wixData.update("idNumCounter", toUpdate)
+            .then(() => numString);
+
+    } catch (error) {
+        console.error("Error fetching member ID:", error);
+        throw error; // Rethrow the error to handle it further if needed
+    }
+}
+
+$w.onReady(function () {
+    wixWindowFrontend.scrollTo(100, 0, { "scrollAnimation": false })
+    let playerCount = 1;
+    let acceptedPassword = false;
+    $w("#showPassword").onClick(async (event) => {
+            $w("#password").inputType = "text"
+            $w("#showPassword").hide()
+            $w("#hidePassword").show()
+        }),
+        $w("#hidePassword").onClick(async (event) => {
+            $w("#password").inputType = "password"
+            $w("#showPassword").show()
+            $w("#hidePassword").hide()
+        }),
+        $w('#password').onBlur(() => {
+            const inputValue = $w('#password').value;
+            if (inputValue.length < 8) {
+                $w('#passwordReqs').html = '<p style="color: red; font-size: 13px">Password needs to be at least 8 charcters long</p>';
+                return;
+            }
+            if (!/\d/.test(inputValue)) {
+                $w('#passwordReqs').html = '<p style="color: red; font-size: 13px">Input must contain at least one number</p>';
+                return;
+            } else {
+                $w('#passwordReqs').html = '<p style="color: green; font-size: 13px">Password Accepted</p>';
+                acceptedPassword = true;
+            }
+        }),
+        $w('#edit').onClick(async (event) => {
+            $w('#Preview').collapse();
+            $w('#previewPlayer2').collapse();
+            $w('#previewPlayer3').collapse();
+            $w('#previewPlayer4').collapse();
+            $w('#previewPlayer5').collapse();
+            $w('#previewPlayer6').collapse();
+            $w('#6players').collapse();
+            $w('#section1').expand();
+            $w('#submitSection').collapse();
+            $w('#previewButtonSection').expand();
+            $w('#previewError').collapse();
+            if (playerCount > 1) {
+                $w('#player2').expand();
+            }
+            if (playerCount > 2) {
+                $w('#player3').expand();
+            }
+            if (playerCount > 3) {
+                $w('#player4').expand();
+            }
+            if (playerCount > 4) {
+                $w('#player5').expand();
+            }
+            if (playerCount > 5) {
+                $w('#player6').expand();
+            }
+        })
+
+    function validCheck(z) {
+        $w("#Player" + z + "FirstName").updateValidityIndication();
+        $w("#Player" + z + "LastName").updateValidityIndication();
+        $w("#dob" + z + "").updateValidityIndication();
+        $w("#Player" + z + "AgeRange").updateValidityIndication();
+        $w("#Player" + z + "Sex").updateValidityIndication();
+        $w("#Player" + z + "Org").updateValidityIndication();
+        $w("#previewError").expand();
+    }
+
+    function player_preview(z) {
+        $w('#PreviewPlayer' + z + 'Name').text = "Name: " + $w('#Player' + z + 'FirstName').value + " " + $w('#Player' + z + 'LastName').value;
+        $w('#PreviewPlayer' + z + 'Dob').text = "DOB: " + $w('#dob' + z + '').value;
+        $w('#PreviewPlayer' + z + 'AgeRange').text = "Age Range: " + $w('#Player' + z + 'AgeRange').value;
+        $w('#PreviewPlayer' + z + 'Sex').text = "Sex: " + $w('#Player' + z + 'Sex').value;
+        $w('#PreviewPlayer' + z + 'Org').text = "Organization: " + $w('#Player' + z + 'Org').value;
+    }
+
+    function def_preview() {
+        $w('#Preview').expand();
+        $w('#submitSection').expand();
+        $w('#section1').collapse();
+        $w('#previewButtonSection').collapse();
+        wixWindowFrontend.scrollTo(100, 0, { "scrollAnimation": false });
+
+        $w('#PreviewGuardianName').text = "Name: " + $w('#GuardianFirstName').value + " " + $w('#GaurdianLastName').value;
+        $w('#PreviewGuardianEmail').text = "Email: " + $w('#email').value;
+        $w('#PreviewGuardianNumber').text = "Phone: " + $w('#phone').value;
+        $w('#PreviewAddress').text = "Address: " + $w('#street').value + "\n" + $w('#city').value + ", " + $w('#zipcode').value + "\nUS";
+        if ($w('#canText').checked) {
+            $w('#PreviewCanText').text = "Can Text: Yes";
+        } else {
+            $w('#PreviewCanText').text = "Can Text: No";
+        }
+        player_preview(1);
+    }
+    $w('#removePlayer').onClick(async (event) => {
+        $w('#player2').collapse();
+        playerCount -= 1
+    })
+    $w('#removePlayer2').onClick(async (event) => {
+        $w('#player3').collapse();
+        $w('#removePlayer').show();
+        playerCount -= 1
+    })
+    $w('#removePlayer3').onClick(async (event) => {
+        $w('#player4').collapse();
+        $w('#removePlayer2').show();
+        playerCount -= 1
+    })
+    $w('#removePlayer4').onClick(async (event) => {
+        $w('#player5').collapse();
+        $w('#removePlayer3').show();
+        playerCount -= 1
+    })
+    $w('#removePlayer5').onClick(async (event) => {
+        $w('#player6').collapse();
+        $w('#removePlayer4').show();
+        $w('#previewPlayer6').collapse();
+        $w('#6players').collapse();
+        playerCount -= 1
+    })
+
+    $w('#addPlayer').onClick(async (event) => {
+        $w("#previewError").collapse();
+        if (playerCount == 1) {
+            if ($w("#over18").checked && $w("#GuardianFirstName").valid && $w("#GaurdianLastName").valid && $w("#phone").valid && $w("#email").valid && $w("#street").valid && $w("#city").valid && $w("#zipcode").valid && acceptedPassword && $w("#Player1FirstName").valid && $w("#Player1LastName").valid && $w("#dob1").valid && $w("#Player1AgeRange").valid && $w("#Player1Sex").valid && $w("#Player1Org").valid) {
+                playerCount += 1;
+                $w("#player" + playerCount).expand();
+                $w("#removePlayer").show();
+                $w("#Player" + playerCount + "Org").value = $w("#Player1Org").value;
+            } else {
+                $w("#GuardianFirstName").updateValidityIndication();
+                $w("#GaurdianLastName").updateValidityIndication();
+                $w("#phone").updateValidityIndication();
+                $w("#email").updateValidityIndication();
+                $w("#street").updateValidityIndication();
+                $w("#city").updateValidityIndication();
+                $w("#zipcode").updateValidityIndication();
+                $w("#over18").updateValidityIndication();
+                if (!acceptedPassword) {
+                    $w("#password").updateValidityIndication();
+                }
+                validCheck(1);
+                wixWindowFrontend.scrollTo(100, 100, { "scrollAnimation": true })
+            }
+        } else if (playerCount == 2) {
+            if ($w("#Player2FirstName").valid && $w("#Player2LastName").valid && $w("#dob2").valid && $w("#Player2AgeRange").valid && $w("#Player2Sex").valid && $w("#Player2Org").valid) {
+                playerCount += 1;
+                $w("#player" + playerCount).expand();
+                $w("#removePlayer2").show();
+                $w("#Player" + playerCount + "Org").value = $w("#Player1Org").value;
+            } else {
+                validCheck(2);
+                wixWindowFrontend.scrollTo(100, 700, { "scrollAnimation": true })
+            }
+        } else if (playerCount == 3) {
+            if ($w("#Player3FirstName").valid && $w("#Player3LastName").valid && $w("#dob3").valid && $w("#Player3AgeRange").valid && $w("#Player3Sex").valid && $w("#Player3Org").valid) {
+                playerCount += 1;
+                $w("#player" + playerCount).expand();
+                $w("#removePlayer3").show();
+                $w("#Player" + playerCount + "Org").value = $w("#Player1Org").value;
+            } else {
+                validCheck(3);
+                wixWindowFrontend.scrollTo(100, 1300, { "scrollAnimation": true })
+            }
+        } else if (playerCount == 4) {
+            if ($w("#Player4FirstName").valid && $w("#Player4LastName").valid && $w("#dob4").valid && $w("#Player4AgeRange").valid && $w("#Player4Sex").valid && $w("#Player4Org").valid) {
+                playerCount += 1;
+                $w("#player" + playerCount).expand();
+                $w("#removePlayer4").show();
+                $w("#Player" + playerCount + "Org").value = $w("#Player1Org").value;
+            } else {
+                validCheck(4);
+                wixWindowFrontend.scrollTo(100, 500, { "scrollAnimation": true })
+            }
+        } else if (playerCount == 5) {
+            if ($w("#Player5FirstName").valid && $w("#Player5LastName").valid && $w("#dob5").valid && $w("#Player5AgeRange").valid && $w("#Player5Sex").valid && $w("#Player5Org").valid) {
+                playerCount += 1;
+                $w("#player" + playerCount).expand();
+                $w("#removePlayer5").show();
+                $w("#Player" + playerCount + "Org").value = $w("#Player1Org").value;
+            } else {
+                validCheck(5);
+                wixWindowFrontend.scrollTo(100, 500, { "scrollAnimation": true })
+            }
+        } else {
+            $w('#6players').expand()
+        }
+    })
+
+    $w('#preview').onClick(async (event) => {
+        if (playerCount == 6) {
+            if ($w("#Player6FirstName").valid && $w("#Player6LastName").valid && $w("#dob6").valid && $w("#Player6AgeRange").valid && $w("#Player2Sex").valid) {
+                $w('#player2').collapse();
+                $w('#player3').collapse();
+                $w('#player4').collapse();
+                $w('#player5').collapse();
+                $w('#player6').collapse();
+                def_preview();
+                $w('#previewPlayer2').expand();
+                $w('#previewPlayer3').expand();
+                $w('#previewPlayer4').expand();
+                $w('#previewPlayer5').expand();
+                $w('#previewPlayer6').expand();
+
+                player_preview(2);
+                player_preview(3);
+                player_preview(4);
+                player_preview(5);
+                player_preview(6);
+
+            } else {
+                validCheck(2);
+                validCheck(3);
+                validCheck(4);
+                validCheck(5);
+                validCheck(6);
+
+            }
+        } else if (playerCount == 5) {
+            if ($w("#Player5FirstName").valid && $w("#Player5LastName").valid && $w("#dob5").valid && $w("#Player5AgeRange").valid && $w("#Player2Sex").valid) {
+                $w('#player2').collapse();
+                $w('#player3').collapse();
+                $w('#player4').collapse();
+                $w('#player5').collapse();
+                def_preview();
+                $w('#previewPlayer2').expand();
+                $w('#previewPlayer3').expand();
+                $w('#previewPlayer4').expand();
+                $w('#previewPlayer5').expand();
+                player_preview(2);
+                player_preview(3);
+                player_preview(4);
+                player_preview(5);
+            } else {
+                validCheck(2);
+                validCheck(3);
+                validCheck(4);
+                validCheck(5);
+            }
+        } else if (playerCount == 4) {
+            if ($w("#Player4FirstName").valid && $w("#Player4LastName").valid && $w("#dob4").valid && $w("#Player4AgeRange").valid && $w("#Player2Sex").valid) {
+                $w('#player2').collapse();
+                $w('#player3').collapse();
+                $w('#player4').collapse();
+                def_preview();
+                $w('#previewPlayer2').expand();
+                $w('#previewPlayer3').expand();
+                $w('#previewPlayer4').expand();
+                player_preview(2);
+                player_preview(3);
+                player_preview(4);
+            } else {
+                validCheck(2);
+                validCheck(3);
+                validCheck(4);
+            }
+        } else if (playerCount == 3) {
+            if ($w("#Player3FirstName").valid && $w("#Player3LastName").valid && $w("#dob3").valid && $w("#Player3AgeRange").valid && $w("#Player2Sex").valid) {
+                $w('#player2').collapse();
+                $w('#player3').collapse();
+                def_preview();
+                $w('#previewPlayer2').expand();
+                $w('#previewPlayer3').expand();
+                player_preview(2);
+                player_preview(3);
+            } else {
+                validCheck(2);
+                validCheck(3);
+            }
+        } else if (playerCount == 2) {
+            if ($w("#Player2FirstName").valid && $w("#Player2LastName").valid && $w("#dob2").valid && $w("#Player2AgeRange").valid && $w("#Player2Sex").valid) {
+                $w('#player2').collapse();
+                def_preview();
+                $w('#previewPlayer2').expand();
+                player_preview(2);
+            } else {
+                validCheck(2);
+            }
+        } else {
+            if ($w("#over18").checked && $w("#GuardianFirstName").valid && $w("#GaurdianLastName").valid && $w("#phone").valid && $w("#email").valid && $w("#street").valid && $w("#city").valid && $w("#zipcode").valid && acceptedPassword && $w("#Player1FirstName").valid && $w("#Player1LastName").valid && $w("#dob1").valid && $w("#Player1AgeRange").valid && $w("#Player1Sex").valid && $w("#Player1Org").valid) {
+                def_preview();
+            } else {
+                $w("#GuardianFirstName").updateValidityIndication();
+                $w("#GaurdianLastName").updateValidityIndication();
+                $w("#phone").updateValidityIndication();
+                $w("#email").updateValidityIndication();
+                $w("#street").updateValidityIndication();
+                $w("#city").updateValidityIndication();
+                $w("#zipcode").updateValidityIndication();
+                $w("#over18").updateValidityIndication();
+                if (!acceptedPassword) {
+                    $w("#password").updateValidityIndication();
+                }
+                validCheck(1);
+                wixWindowFrontend.scrollTo(100, 100, { "scrollAnimation": true })
+            }
+        }
+
+    })
+    $w('#submit').onClick(async (event) => {
+        const guardianInfoNoText = {
+            name: {
+                first: $w('#GuardianFirstName').value,
+                last: $w('#GaurdianLastName').value
+            },
+            emails: [{
+                email: $w('#email').value
+            }],
+            phones: [{
+                tag: "MOBILE",
+                countryCode: "US",
+                phone: $w('#phone').value
+            }],
+            addresses: [{
+                tag: "HOME",
+                address: {
+                    formatted: $w('#street').value + "\n" + $w('#city').value + ", " + $w('#zipcode').value + "\nUS"
+                }
+            }],
+            labelKeys: [
+                "custom.guardian"
+            ],
+            extendedFields: {
+                "custom.memberid": await generateMemberID(1)
+            }
+        };
+
+        const guardianInfoCanText = {
+            name: {
+                first: $w('#GuardianFirstName').value,
+                last: $w('#GaurdianLastName').value
+            },
+            emails: [{
+                email: $w('#email').value
+            }],
+            phones: [{
+                tag: "MOBILE",
+                countryCode: "US",
+                phone: $w('#phone').value
+            }],
+            addresses: [{
+                tag: "HOME",
+                address: {
+                    formatted: $w('#street').value + "\n" + $w('#city').value + ", " + $w('#city').value + "\nUS"
+                }
+            }],
+            labelKeys: [
+                "custom.guardian",
+                "custom.can-text"
+            ],
+            extendedFields: {
+                "custom.memberid": await generateMemberID(1)
+            }
+        };
+        async function playerfunc(z) {
+            let ageRange = $w("#Player" + z + "AgeRange").value;
+            let sex = $w("#Player" + z + "Sex").value;
+            let org = $w("#Player" + z + "Org").value;
+            if (sex == "Male") {
+                sex = "boys-team"
+            } else {
+                sex = "girls-team"
+            }
+            org = org.toLowerCase();
+            const playerInfo = {
+                name: {
+                    first: $w('#Player' + z + 'FirstName').value,
+                    last: $w('#Player' + z + 'LastName').value
+                },
+                birthdate: $w('#dob' + z).value,
+                labelKeys: [
+                    "custom." + ageRange,
+                    "custom." + sex,
+                    "custom." + org,
+                    "custom.player"
+                ],
+                extendedFields: {
+                    "custom.test": await generateMemberID(z + 1),
+                    "custom.memberid": await generateMemberID(1)
+                }
+            };
+            return playerInfo
+        }
+
+        // try{
+        //     if ($w('#canText').checked) {
+        //         const guardianContact = await myCreateContactFunction(guardianInfoCanText);
+        //     } else {
+        //         const guardianContact = await myCreateContactFunction(guardianInfoNoText);
+        //     }
+        //     await updateIdNum(playerCount += 1);
+        // } catch (error) {
+        //     console.error(error);
+        // }
+        try {
+            let email = $w('#email').value;
+            let password = $w('#password').value;
+            const id=await authentication.register(email, password)
+            .then((registrationResult) => {
+                return registrationResult.member
+            })
+            const id2= await  myGetContactFunction(id._id)
+            console.log(id2)
+            console.log(id2._id)
+            console.log(id2.revision)
+            const contactIdentifiers = {
+                contactId: id2._id,
+                revision: id2.revision
+            };
+            if ($w('#canText').checked) {
+                await myUpdateContactFunction(contactIdentifiers,guardianInfoCanText)
+            }else {
+                const x=await myUpdateContactFunction(contactIdentifiers,guardianInfoNoText)
+                console.log(x.revision)
+            }
+            wixLocation.to('/contact-us')
+        } catch (error) {
+            $w('#submit').hide()
+            $w('#edit').hide()
+            console.log(error)
+        }
+        try {
+            for (let x = 1; x < playerCount + 1; x++) {
+                const playerInfo = await playerfunc(x); // Await the result of playerfunc(x)
+                const playerContact = await myCreateContactFunction(playerInfo);
+            }
+            await updateIdNum(playerCount += 1);
+        } catch (error) {
+            console.error(error);
+        }
+
+    })
+});
